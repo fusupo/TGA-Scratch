@@ -25,7 +25,8 @@ var analyser = context.createAnalyser();
 analyser.minDecibels = -90;
 analyser.maxDecibels = -10;
 analyser.smoothingTimeConstant = 0.85;
-var dataArray;
+var tdDataArray;
+var freqDataArray;
 var bufferLength;
 
 function loadDogSound(url) {
@@ -38,7 +39,6 @@ function loadDogSound(url) {
     context.decodeAudioData(request.response, function(buffer) {
       dogBarkingBuffer = buffer;
       playSound(dogBarkingBuffer);
-      //funkyShit(dogBarkingBuffer);
     }, function() {
       console.log('err');
     });
@@ -50,7 +50,7 @@ loadDogSound('ClassicBreaks030.wav');
 
 function playSound(buffer) {
   var source = context.createBufferSource(); // creates a sound source
-  source.loop = true;
+  // source.loop = true;
   source.buffer = buffer; // tell the source which sound to play
   source.connect(analyser);
   analyser.connect(context.destination);
@@ -61,89 +61,82 @@ function playSound(buffer) {
   };
   // note: on older systems, may have to use deprecated noteOn(time);
 
-
   //
 
   analyser.fftSize = 2048;
   bufferLength = analyser.frequencyBinCount;
-  dataArray = new Uint8Array(bufferLength);
-  analyser.getByteTimeDomainData(dataArray);
+  tdDataArray = new Uint8Array(bufferLength);
+  freqDataArray = new Uint8Array(bufferLength);
+  analyser.getByteTimeDomainData(tdDataArray);
 
-  console.log(dataArray);
+  console.log(tdDataArray);
 
-  draw();
+  drawTD();
+  drawFreq();
 }
 
 var drawVisual;
-
-var canvasCtx = can.getContext("2d");
+var tdCtx = tdcan.getContext("2d");
 var WIDTH = 500;
 var HEIGHT = 100;
 
-function draw() {
+function drawTD() {
 
-  drawVisual = requestAnimationFrame(draw);
+  //drawVisual = requestAnimationFrame(draw);
 
-  analyser.getByteTimeDomainData(dataArray);
+  analyser.getByteTimeDomainData(tdDataArray);
 
-  //console.clear();
-  //console.log(dataArray[100]);
+  tdCtx.fillStyle = 'rgb(200, 200, 200)';
+  tdCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  canvasCtx.fillStyle = 'rgb(200, 200, 200)';
-  canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+  tdCtx.lineWidth = 2;
+  tdCtx.strokeStyle = 'rgb(0, 0, 0)';
 
-  canvasCtx.lineWidth = 2;
-  canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
-
-  canvasCtx.beginPath();
+  tdCtx.beginPath();
 
   var sliceWidth = WIDTH * 1.0 / bufferLength;
   var x = 0;
 
   for (var i = 0; i < bufferLength; i++) {
 
-    var v = dataArray[i] / 128.0;
+    var v = tdDataArray[i] / 128.0;
     var y = v * HEIGHT / 2;
 
     if (i === 0) {
-      canvasCtx.moveTo(x, y);
+      tdCtx.moveTo(x, y);
     } else {
-      canvasCtx.lineTo(x, y);
+      tdCtx.lineTo(x, y);
     }
 
     x += sliceWidth;
   }
 
-  canvasCtx.lineTo(can.width, can.height / 2);
-  canvasCtx.stroke();
+  tdCtx.lineTo(tdcan.width, tdcan.height / 2);
+  tdCtx.stroke();
 };
 
-// function funkyShit(buffer) {
-//   // Create offline context
-//   var offlineContext = new OfflineAudioContext(1, buffer.length, buffer.sampleRate);
+var drawFreqVisual;
+var freqCtx = freqcan.getContext("2d");
 
-//   // Create buffer source
-//   var source = offlineContext.createBufferSource();
-//   source.buffer = buffer;
+function drawFreq() {
+  //console.log('drawfreq');
+  //drawFreqVisual = requestAnimationFrame(drawFreq);
 
-//   // Create filter
-//   var filter = offlineContext.createBiquadFilter();
-//   filter.type = "lowpass";
+  analyser.getByteFrequencyData(freqDataArray);
 
-//   // Pipe the song into the filter, and the filter into the offline context
-//   source.connect(filter);
-//   filter.connect(offlineContext.destination);
+  freqCtx.fillStyle = 'rgb(0, 0, 0)';
+  freqCtx.fillRect(0, 0, WIDTH, HEIGHT);
 
-//   // Schedule the song to start playing at time:0
-//   source.start(0);
+  var barWidth = (WIDTH / bufferLength) * 2.5;
+  var barHeight;
+  var x = 0;
 
-//   // Render the song
-//   offlineContext.startRendering()
+  for (var i = 0; i < bufferLength; i++) {
+    barHeight = freqDataArray[i];
 
-//   // Act on the result
-//   offlineContext.oncomplete = function(e) {
-//     // Filtered buffer!
-//     var filteredBuffer = e.renderedBuffer;
-//     console.log(filteredBuffer);
-//   };
-// }
+    freqCtx.fillStyle = 'rgb(' + (barHeight + 100) + ',50,50)';
+    freqCtx.fillRect(x, HEIGHT - barHeight / 2, barWidth, barHeight / 2);
+
+    x += barWidth + 1;
+  };
+}
